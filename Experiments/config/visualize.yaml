@@ -1,0 +1,94 @@
+project_dir: ${pkgfile:fmukf}/../.. # Sneaky way to get the project directory
+hydra_dir:   ${project_dir}/Experiments/temp/visualization/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+defaults:
+  - _self_
+
+hydra:
+  job:
+    chdir: true
+  run:
+    dir: ${hydra_dir}
+
+io:
+  input_file: ${project_dir}/Experiments/data/df_err_FINAL.feather  # Path to input feather file
+  output_violin: ${hydra_dir}/violin_plot.pdf  # Output path for violin plot
+  output_table: ${hydra_dir}/latex_table.txt   # Output path for LaTeX table
+
+estimators:
+  # Labels for violin plot display names and colors
+  labels:
+    "End2End": #"End2End__reduced_elk_157__None": 
+      display_name: "End2End (Busetto et al.)"
+      color: "blue"
+    "FMUKF_no_integrator": #"FMUKF__Q0.1__P1.0__None__False__dynamic_vehicle_2243": 
+      display_name: "FM-UKF (no integrator)"
+      color: "violet"
+    "FMUKF_with_integrator": #"FMUKF__Q0.1__P1.0__midpoint__False__dynamic_vehicle_2243": 
+      display_name: "FM-UKF (with integrator)"
+      color: "mediumorchid"
+    "OracleUKF": #"OracleUKF__Q0.1__P1.0__False": 
+      display_name: "Oracle-UKF"
+      color: "darkgreen"
+    "BaseUKF": #"BaseUKF__Q0.1__P1.0__False": 
+      display_name: "Base-UKF"
+      color: "#9dfc03"
+    "CVUKF": #"CVUKF__Q0.1__P1.0__False": 
+      display_name: "CV-UKF"
+      color: "#ffee00"
+  
+  # Labels for LaTeX table
+  table_labels:
+    # "End2End__reduced_elk_157__None": "\\makecell{End2End \\\\ (Busetto et al.)}"
+    # "FMUKF__Q0.1__P1.0__midpoint__False__dynamic_vehicle_2243": "\\makecell{FM-UKF \\\\ (integrator)}"
+    # "BaseUKF__Q0.1__P1.0__False": "\\makecell{Base-UKF \\\\  \\phantom{.}}"
+    # "CVUKF__Q0.1__P1.0__False": "\\makecell{CV-UKF \\\\  \\phantom{.}}"
+    "End2End": "\\makecell{End2End \\\\ (Busetto et al.)}"
+    "FMUKF_with_integrator": "\\makecell{FM-UKF \\\\ (with integrator)}"
+    "BaseUKF": "\\makecell{Base-UKF \\\\  \\phantom{.}}"
+    "CVUKF": "\\makecell{CV-UKF \\\\  \\phantom{.}}"
+
+features:
+  # Labels for violin plot (full descriptions)
+  labels:
+    "p": "$p$ - Roll Rate [deg/s]"
+    "r": "$r$ - Yaw Rate [deg/s]"
+    "u": "$u$ - Surge Velocity [m/s]"
+    "v": "$v$ - Sway Velocity [m/s]"
+    "phi": "$\\phi$ - Roll Angle [deg]"
+    "psi": "$\\psi$ - Yaw Angle [deg]"
+    "x": "$x$ - Position North [km]"
+    "y": "$y$ - Position East [km]"
+  
+  # Labels for LaTeX table (shorter versions)
+  table_labels:
+    "p": "$p$"
+    "r": "$r$"
+    "u": "$u$"
+    "v": "$v$"
+    "phi": "$\\phi$"
+    "psi": "$\\psi$ "
+    "x": "$x$"
+    "y": "$y$"
+  
+  # Sensor configurations to include in analysis
+  sensors:
+    - "ALL"
+    - "GuessUV"
+
+plotting:
+  # LaTeX rendering settings for vectorized (requires suitable pdflatex installation)
+  use_pgf_rendering: true
+  
+  # Figure layout
+  subplot_grid: [2, 4]  # [rows, columns]
+  figure_size: [13, 5.3755]  # [width, height] in inches
+  dpi: 400
+  font_size: 12
+  
+  # Violin plot settings
+  bw_adjust: 0.5
+  violin_width: 0.95
+  violin_cut: 1.0
+  violin_alpha: 0.8
+  violin_edge_width: 0.05 

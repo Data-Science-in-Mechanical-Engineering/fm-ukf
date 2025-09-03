@@ -1,0 +1,148 @@
+# FMUKF Training Configuration
+# This file contains all configuration parameters for training the FMUKF model
+# The configuration is organized into logical sections for data, training, model, callbacks, and logging
+
+# Directory configuration for experiment outputs and temporary files
+project_dir: ${pkgfile:fmukf}/../.. # Sneaky way to get the project directory
+hydra_dir: ${project_dir}/Experiments/temp/training/fmukf/${now:%Y-%m-%d}/${now:%H-%M-%S} # Directory for all temporary files
+output_dir: ${project_dir}/Experiments/outputs
+
+# Import other configuration files
+defaults:
+  - auth          # Authentication credentials for Comet ML
+  - dataset       # Dataset configuration (train/val/test splits)
+  - _self_        # This configuration file
+
+# Hydra configuration for experiment management
+hydra:
+  job:
+    chdir: true   # Change to experiment directory
+  run:
+    dir: "${hydra_dir}"  # Set run directory
+  sweep:
+    dir: "${hydra_dir}"  # Set sweep directory
+    subdir: "${hydra.job.num}"  # Subdirectory for each job
+
+# Data configuration - determines train/validation/test split (KEEP CONSISTENT WITH BENCHMARK)
+data:
+  h5_dataset_path: ${dataset.h5_dataset_path}  # Path to HDF5 dataset file
+  seed: ${dataset.seed}                        # Random seed for reproducible train/val/test splits
+  num_envs_val:  ${dataset.num_envs_val}       # Number of environments for validation
+  num_envs_test: ${dataset.num_envs_test}      # Number of environments for testing
+  batch_size: 265                              # (Initial) Batch size for training
+  recompute_statistics: false                  # Whether to recompute dataset normalization statistics
+  dtype: float32                               # Data type for tensors
+
+# Training configuration
+training:
+  l_batch: ${intop:2,*,${model.masking.min_context}}  # Total sequence length (2 * min_context)
+  max_epochs: 1000                             # Maximum number of training epochs
+  check_val_every_n_epoch: 10                  # Validate every N epochs
+  log_every_n_steps: 254                       # Log metrics every N steps
+  enable_progress_bar: true                    # Show training progress bar in terminal
+  gradient_clip_val: 1.0                       # Gradient clipping value for stability
+  benchmark: true                              # Enable PyTorch benchmarking
+
+# Model architecture and configuration
+model:
+  patch_size: 2                                # Size of patches for transformer input
+  datatype: float32                            # Model data type
+  h: 1.0                                       # Time step size in seconds
+  normalize: true                              # Whether to normalize input data
+  loss_type: Huber                             # Loss function type (Huber loss )
+  
+  # Transformer architecture parameters
+  transformer_kwargs:
+    embedding_dim: 128                         # Dimension of transformer embeddings
+    num_layers: 8                              # Number of transformer layers
+    num_heads: ${intop:${.embedding_dim},/,4}  # Number of attention heads
+    transformer_hidden_dim: ${intop:4,*,${.embedding_dim}}  # Hidden dimension
+    residual_dropout: 0.0                      # Dropout for residual connections
+    residual_hidden_dim: ${intop:4,*,${.embedding_dim}}    # Residual hidden dimension
+    attention_dropout: 0.01                    # Dropout for attention layers
+    use_posenc: true                           # Whether to use positional encoding
+    posenc_dropout: 0.01                       # Dropout for positional encoding
+    posenc_max_len: ${training.l_batch}        # Maximum length for positional encoding
+ 
+  # Noise configuration for model inputs
+  # Small amount of noise added to the model's input (prior sampled every trajectory from std ~ [min_std_multiplier * noise_stds_x, max_std_multiplier * noise_stds_x])
+  min_std_multiplier: 0.1                      # Minimum standard deviation multiplier
+  max_std_multiplier: ${floatop:${.min_std_multiplier},+,0.0000001}  # Maximum standard deviation multiplier (here basically constant)
+  noise_stds_x:
+    x: 0.001                                   # X position noise
+    y: 0.001                                   # Y position noise
+    v: 0.01                                    # Velocity noise
+    u: 0.01                                    # Forward velocity noise
+    psi: 0.01                                  # Heading angle noise
+    r: 0.01                                    # Yaw rate noise
+    phi: 0.01                                  # Roll angle noise
+    p: 0.01                                    # Roll rate noise
+    delta: 0.0                                 # Rudder angle noise (no noise)
+    n: 0.0                                     # Propeller speed noise (no noise)
+  
+  noise_stds_u: null                           # Noise for input variables (null = no noise)
+  
+  # Masking configuration for MHLP (Masked Long Horizon Prediction) during training
+  masking:
+    min_context: 64                            # Minimum context length for masking
+    max_context: 84                            # Maximum context length for masking
+  
+  # Optimization configuration
+  optimization:
+    optimizer: Adam                            # Optimizer type
+    learning_rate: 0.001                       # Learning rate
+    lr_schedule:                               # Learning rate schedule parameters
+      warmup: 60                               # Warmup steps
+      decay: 0.774                             # Decay factor
+      step: 50                                 # Step size for decay
+
+# Callbacks configuration for training monitoring and visualization
+callbacks:
+  # Gradient accumulation schedule for effective larger batch sizes (ie 16x larger batch size by 
+  grad_accumulation:
+    schedule:
+      1: 1                                     # Start with accumulation factor 1
+      40: 8                                    # Increase to factor *8 at step 40
+      800: 16                                  # Increase to 16 at step 800
+
+  # Model checkpointing configuration (ie saves the best model based on validation loss)
+  checkpoint:
+    use: true                                  # Whether to save checkpoints
+    dirpath: '${hydra_dir}/ckpt'               # Directory for saving checkpoints
+    filename: 'fmukf__{experiment_name}-epoch{{epoch}}-{{val_loss:.10f}}'  # Checkpoint filename pattern {experiment_name} is returned by Comet ML
+    monitor: val_loss                          # Metric to monitor for best model
+    save_top_k: 3                              # Save top k best models
+    verbose: true                              # Verbose checkpoint logging
+
+  # Identity loss (loss returned by prediction xhat_k+1 = x_k for target x_k+1) for sanity checking 
+  identity_loss:
+    use: true                                  # Whether to compute identity loss at the beginning training
+
+  # Visualization callbacks for monitoring training progress
+  visABBpred:                                  # Raw prediction visualization
+    every_n_epochs: 100                        # Visualize every N epochs
+    at_train_end: false                        # Whether to visualize at training end
+    backend: matplotlib                        # Visualization backend
+
+  visUnroll:                                   # Model unrolling visualization
+    every_n_epochs: 100                          # Visualize every N epochs
+    at_train_end: true                         # Whether to visualize at training end
+    backend: matplotlib                        # Visualization backend
+    do_MHLP: true                              # Whether to do Maximum Likelihood Hyperparameter
+    integrator_methods:                        # Integration methods for unrolling
+    - midpoint                                 # Use midpoint integration
+
+# Logging configuration for experiment tracking
+logger:  
+  use_comet: false                             # Whether to use Comet ML for logging (otherwise no logger)
+  comet:
+    api_key: ${auth.comet_logger.api_key}      # Comet ML API key
+    workspace: ${auth.comet_logger.workspace}  # Comet ML workspace
+    project_name: foo                          # Project name for experiment tracking
+    save_dir: "${hydra_dir}/comet"             # Directory for Comet ML files
+    tags:                                      # Tags for experiment organization
+    - FMUKF                                    # Model type tag
+    - Foo                                      # Project tag
+    log_code_files:                            # Code files to log with experiment
+    - ${pkgfile:fmukf.ML.models}               # Model implementation file
+

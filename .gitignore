@@ -1,0 +1,27 @@
+.venv
+.venv/*
+.egg_info
+*.egg-info/
+*.egg
+foo/
+*__pycache__
+*.pyc
+
+*.h5
+*.feather
+*.zarr
+*.ckpt
+
+*.pdf
+*.svg
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+*/temp/
+# core.r23m0196.hpc.itc.rwth-aachen.de.1112419.6
+core.*
+Experiments/config/train_End2End_old.yaml
+Experiments/train_End2End_old.py
+*.zip

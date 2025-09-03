@@ -1,0 +1,26 @@
+# @package dataset
+
+
+# Dataset Configuration
+# This file contains global dataset configuration for train/val/test splits
+
+# Path to the HDF5 dataset file containing the training data
+# The dataset should contain time series data with state and input variables
+h5_dataset_path: ${pkgfile:fmukf}/../../Experiments/data/Containerships_Large.h5
+
+# Random seed for reproducible train/validation/test splits
+# This seed determines which environments are selected for validation and test sets
+# Same value needed for reproducibility of the benchmark and ML model training
+seed: 69
+
+# Number of environments to use for validation set
+# These environments are excluded from training and used for model evaluation
+num_envs_val:  100 #100
+
+# Number of environments to use for test set
+# These environments are excluded from training and validation, used for final evaluation
+num_envs_test: 100 #100
+
+# Time step size in seconds between each time step in the dataset
+
+h: 1.0

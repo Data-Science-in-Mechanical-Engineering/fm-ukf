@@ -1,0 +1,18 @@
+# @package auth
+
+# Authentication Configuration
+# This file contains sensitive authentication credentials for external services
+
+
+# TODO: Before publication, remove contents of sensitive.yaml
+# WARNING: This file contains API keys and should not be committed to version control
+
+# SLURM cluster configuration for job submission
+slurm:
+  account: null # Let SLURM use default account automatically
+  
+# Comet ML configuration for experiment tracking and logging
+comet_logger:
+  api_key: null  # Comet ML API key for authentication
+  workspace: null                       # Comet ML workspace name
+
