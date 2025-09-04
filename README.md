@@ -147,6 +147,7 @@ MIT License
 
 
 Copyright (c) 2025 Tobin Holtmann
+
 Portions copyright (c) 2004 Thor I. Fossen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
